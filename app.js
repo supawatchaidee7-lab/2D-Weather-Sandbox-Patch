@@ -329,6 +329,8 @@ var clockEl;
 var simDateTime;
 
 var SETUP_MODE = false;
+var coldFrontActive = false;
+var coldFrontTimer = 0;
 
 var loadingBar;
 var cam;
@@ -3471,10 +3473,9 @@ async function mainScript(initialBaseTex, initialWaterTex, initialWallTex, initi
     // add functions to guicontrols object
     guiControls.download = function() { prepareDownload(); };
 
-    guiControls.backToMenu = function() {
-      if (confirm('Go back to main menu? Any unsaved progress will be lost.')) {
-        location.reload();
-      }
+    guiControls.triggerColdFront = function() {
+      coldFrontActive = true;
+      coldFrontTimer = 5 * 60; // 5 seconds at 60 FPS
     };
 
     guiControls.resetSettings = function() {
@@ -3556,6 +3557,8 @@ async function mainScript(initialBaseTex, initialWaterTex, initialWallTex, initi
       })
       .listen()
       .name('Apply above altitude');
+
+    fluidParams_folder.add(guiControls, 'triggerColdFront').name('Trigger Cold Front');
 
 
     var UI_folder = datGui.addFolder('User Interaction');
@@ -5932,6 +5935,18 @@ async function mainScript(initialBaseTex, initialWaterTex, initialWallTex, initi
             gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
             // calc and apply advection
+            if (coldFrontActive) {
+              coldFrontTimer--;
+              if (coldFrontTimer <= 0) {
+                coldFrontActive = false;
+              } else {
+                let randomX = Math.random();
+                let randomY = 0.5; // mid height
+                let tempIntensity = -(1 + Math.random()); // cool by 1 to 2 degrees
+                gl.uniform4f(gl.getUniformLocation(advectionProgram, 'userInputValues'), randomX, randomY, tempIntensity, guiControls.brushSize * 0.5);
+                gl.uniform1i(gl.getUniformLocation(advectionProgram, 'userInputType'), 1); // temperature mode
+              }
+            }
             gl.useProgram(advectionProgram);
             gl.activeTexture(gl.TEXTURE0);
             gl.bindTexture(gl.TEXTURE_2D, baseTexture_0);
